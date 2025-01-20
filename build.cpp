@@ -2,6 +2,7 @@
 
 int main() {
     nobpp::CommandBuilder()
+        .set_project_name("http.cpp2")
         .set_compiler(nobpp::Compiler::clang)
         .set_language(nobpp::Language::cpp)
         .set_target_os(nobpp::TargetOS::windows)

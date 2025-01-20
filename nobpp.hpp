@@ -585,7 +585,7 @@ bool is_cpp_header_file(const std::string& path) noexcept {
 enum struct Compiler { clang, gcc };
 enum struct Language { c, cpp };
 enum struct TargetOS { windows, linux };
-enum struct OptimizationLevel { none, o1, o2, o3, os, oz };
+enum struct OptimizationLevel { o0, o1, o2, o3, os, oz };
 enum struct Mode { debug, release };
 
 /**
@@ -624,6 +624,49 @@ public:
      */
     CommandBuilder() = default;
 
+    /**
+     * @brief Set the project name
+     *
+     * @param project_name `const std::string&`
+     * @return `CommandBuilder&`
+     * @code
+     * ```cpp
+     * builder.set_project_name("Hello Project");
+     * ```
+     * @endcode
+     */
+    CommandBuilder& set_project_name(const std::string& project_name) noexcept {
+        self.project_name = project_name;
+        return self;
+    }
+
+    /**
+     * @brief Set the project name
+     *
+     * @param project_name `const char*`
+     * @return `CommandBuilder&`
+     * @code
+     * ```cpp
+     * builder.set_project_name("Hello Project");
+     * ```
+     * @endcode
+     */
+    CommandBuilder& set_project_name(const char* project_name) noexcept {
+        self.project_name = project_name;
+        return self;
+    }
+
+    /**
+     * @brief Set the compiler
+     *
+     * @param compiler `nobpp::Compiler`
+     * @return `CommandBuilder&`
+     * @code
+     * ```cpp
+     * builder.set_compiler(nobpp::Compiler::clang);
+     * ```
+     * @endcode
+     */
     CommandBuilder& set_compiler(Compiler compiler) noexcept {
         self.compiler = compiler;
         return self;
@@ -1108,7 +1151,7 @@ public:
         }
 
         switch (self.optimization_level) {
-            case OptimizationLevel::none:
+            case OptimizationLevel::o0:
                 command.push_back("-O0");
                 break;
             case OptimizationLevel::o1:
@@ -1173,11 +1216,19 @@ public:
         process.set_command(command);
 
         create_process(command);
+
+        if (self.project_name == "") {
+            std::cout << "Compile finished\n";
+        } else {
+            std::cout << "Project " << self.project_name
+                      << " compile finished\n";
+        }
     }
 
 private:
     CommandBuilder& self = *this;
 
+    std::string project_name = "";
     Compiler compiler = Compiler::clang;
     Language language = Language::cpp;
     TargetOS target_os;
