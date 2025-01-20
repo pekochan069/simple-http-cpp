@@ -586,6 +586,7 @@ enum struct Compiler { clang, gcc };
 enum struct Language { c, cpp };
 enum struct TargetOS { windows, linux };
 enum struct OptimizationLevel { none, o1, o2, o3, os, oz };
+enum struct Mode { debug, release };
 
 /**
  * @brief Command Builder to create and run build commands
