@@ -44,9 +44,9 @@ struct SocketConfig {
 class Socket {
 public:
     struct Listener {
-        std::function<void(SOCKET)> on_connect;
-        std::function<void(SOCKET)> on_disconnect;
-        std::function<void(SOCKET, std::string_view)> on_receive;
+        std::function<void()> on_connect;
+        std::function<void()> on_disconnect;
+        std::function<void(std::string_view)> on_receive;
     };
 
 public:
@@ -54,33 +54,37 @@ public:
     // virtual void on_disconnect(SOCKET client_socket);
     // virtual void on_receive(SOCKET client_socket, std::string_view data);
 
-    Socket(SocketConfig config = SocketConfig()) noexcept : config(config) {
-        LOG("http::Socket(SocketConfig config)");
+    Socket(SocketConfig config = {}) noexcept : config(config) {
+        LOG_TRACE("http::Socket(SocketConfig config)");
     }
     Socket(SocketConfig&& config) noexcept : config(std::move(config)) {
-        LOG("http::Socket(SocketConfig&& config)");
+        LOG_TRACE("http::Socket(SocketConfig&& config)");
     }
     Socket(Socket&) = delete;
     Socket(Socket&& other) noexcept : config(std::move(other.config)) {
-        LOG("http::Socket(Socket&& other)");
+        LOG_TRACE("http::Socket(Socket&& other)");
     };
 
     Socket& operator=(Socket&) = delete;
     Socket& operator=(Socket&& other) {
-        LOG("http::Socket::operator(Socket&& other)");
+        LOG_TRACE("http::Socket::operator(Socket&& other)");
         self.config = std::move(other.config);
         return self;
     }
 
     ~Socket() {
-        LOG("http::~Socket()");
+        LOG_TRACE("http::~Socket()");
         if (self.ready) {
             self.terminate();
         }
     }
 
     void init() {
-        LOG("http::Socket::init()");
+        LOG_TRACE("http::Socket::init()");
+
+        if (self.ready) {
+            return;
+        }
 
         WSADATA wsa_data;
         int32_t startup_result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
@@ -165,7 +169,9 @@ public:
         self.ready = true;
     }
 
-    void accept() {
+    void listen() {
+        LOG_TRACE("http::Socket::listen()");
+
         if (!self.ready) {
             std::println("Server is not ready. Initialize server first");
             return;
@@ -202,72 +208,29 @@ public:
                     &flags, &client_context->overlapped, nullptr);
 
             if (self.listeners.on_connect) {
-                self.listeners.on_connect(client_socket);
+                self.listeners.on_connect();
             }
 
             using namespace std::chrono_literals;
             std::this_thread::sleep_for(1ms);
         }
-
-        // HANDLE accept_event = WSACreateEvent();
-        // if (accept_event == WSA_INVALID_EVENT) {
-        //     self.terminate();
-        //     throw std::runtime_error(
-        //         std::format("Cannot create WSA event: {}",
-        //         WSAGetLastError()));
-        // }
-
-        // if (WSAEventSelect(self.socket, accept_event, FD_ACCEPT) ==
-        //     SOCKET_ERROR) {
-        //     WSACloseEvent(accept_event);
-        //     self.terminate();
-        //     throw std::runtime_error(std::format(
-        //         "Error occurred while WSAEventSelect: {}",
-        //         WSAGetLastError()));
-        // }
-
-        // while (true) {
-        //     client = ::accept(self.socket, nullptr, nullptr);
-
-        //     if (client == INVALID_SOCKET) {
-        //         int32_t error = WSAGetLastError();
-        //         if (error == WSAEWOULDBLOCK) {
-        //             continue;
-        //         }
-        //     }
-        //     // if (client == INVALID_SOCKET) {
-        //     //     self.terminate();
-        //     //     throw std::runtime_error(std::format(
-        //     //         "Failed to accept client: {}", WSAGetLastError()));
-        //     // }
-
-        //     // char recvbuf[512];
-        //     // int receive_result, iSendResult;
-        //     // int recvbuflen = 512;
-        //     // do {
-        //     //     receive_result = ::recv(client, recvbuf, recvbuflen, 0);
-        //     //     if (receive_result == WSAEWOULDBLOCK) {
-        //     //         continue;
-        //     //     }
-        //     //     if (receive_result > 0) {
-        //     //         printf("receive");
-        //     //     }
-        //     // } while (receive_result > 0);
-        // }
     }
 
-    void on_connect(std::function<void(SOCKET)> func) {
+    void on_connect(std::function<void()> func) {
+        LOG_TRACE("http::Socket::on_connect()");
         self.listeners.on_connect = func;
     }
-    void on_disconnect(std::function<void(SOCKET)> func) {
+    void on_disconnect(std::function<void()> func) {
+        LOG_TRACE("http::Socket::on_disconnect()");
         self.listeners.on_disconnect = func;
     }
-    void on_receive(std::function<void(SOCKET, std::string_view)> func) {
+    void on_receive(std::function<void(std::string_view)> func) {
+        LOG_TRACE("http::Socket::on_receive()");
         self.listeners.on_receive = func;
     }
 
     void terminate() {
-        LOG("http::Terminate Socket");
+        LOG_TRACE("http::Terminate Socket");
 
         if (!self.ready) {
             return;
@@ -288,7 +251,7 @@ public:
 
 private:
     void worker_thread() {
-        LOG("http::Socket::worker_thread()");
+        LOG_TRACE("http::Socket::worker_thread()");
 
         while (true) {
             if (!self.ready) {
@@ -302,6 +265,7 @@ private:
         }
     }
     void worker_thread_loop() {
+        LOG_TRACE("http::Socket::worker_thread_loop()");
         DWORD bytes_transferred;
         ClientContext* client_context;
         OVERLAPPED* overlapped;
@@ -313,7 +277,7 @@ private:
         if (!result || bytes_transferred == 0) {
             if (client_context != nullptr) {
                 if (self.listeners.on_disconnect) {
-                    self.listeners.on_disconnect(client_context->socket);
+                    self.listeners.on_disconnect();
                 }
                 closesocket(client_context->socket);
                 delete client_context;
@@ -327,8 +291,7 @@ private:
                 client_context->buffer, bytes_transferred);
 
             if (self.listeners.on_receive) {
-                self.listeners.on_receive(
-                    client_context->socket, std::string_view(received_data));
+                self.listeners.on_receive(std::string_view(received_data));
             }
 
             memset(client_context->buffer, 0, BUFFER_SIZE);
