@@ -154,7 +154,7 @@ struct Request {
         request.fields.insert_range(fields);
 
         // Body
-        request.body = (split_input | std::views::drop(2)).front().front();
+        request.body = (split_input | std::views::drop(1)).front().front();
 
         return std::optional(request);
     }

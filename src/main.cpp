@@ -16,7 +16,8 @@ int main() {
         http::Server server = http::Server{3000};
         server.on_receive([](http::Request&& request) {
             LOG_INFO("{} {}", request.method_to_string(), request.route);
-            std::println();
+            LOG_INFO("body: {}", request.body);
+            LOG_INFO("");
         });
         server.listen();
     } catch (std::exception& e) {
