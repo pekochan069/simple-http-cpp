@@ -5,6 +5,7 @@ int main() {
         .set_compiler(nobpp::Compiler::clang)
         .set_language(nobpp::Language::cpp)
         .set_target_os(nobpp::TargetOS::windows)
+        .add_option("-DLOG_LEVEL_INFO")
         .add_files("./src")
         .add_option("-std=c++2c")
         .set_optimization_level(nobpp::OptimizationLevel::o3)
