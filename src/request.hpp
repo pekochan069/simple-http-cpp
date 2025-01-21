@@ -4,102 +4,12 @@
 #include <ranges>
 #include <string_view>
 #include <unordered_map>
+#include "http_method.hpp"
+#include "http_version.hpp"
 #include "log.hpp"
 #include "string_utils.hpp"
 
 namespace http {
-
-enum struct Method {
-    Get,
-    Post,
-    Patch,
-    Put,
-    Delete,
-    Head,
-    Connect,
-    Options,
-    Trace,
-    Unknown
-};
-
-enum struct HttpVersion { Http1_1, Unknown };
-
-Method parse_method(std::string_view method) {
-    LOG_TRACE("http::parse_method()");
-    using namespace std::string_view_literals;
-    if (method == "GET"sv) {
-        return Method::Get;
-    } else if (method == "POST"sv) {
-        return Method::Post;
-    } else if (method == "PATCH"sv) {
-        return Method::Patch;
-    } else if (method == "PUT"sv) {
-        return Method::Put;
-    } else if (method == "DELETE"sv) {
-        return Method::Delete;
-    } else if (method == "HEAD"sv) {
-        return Method::Head;
-    } else if (method == "CONNECT"sv) {
-        return Method::Connect;
-    } else if (method == "OPTIONS"sv) {
-        return Method::Options;
-    } else if (method == "TRACE"sv) {
-        return Method::Trace;
-    } else {
-        return Method::Unknown;
-    }
-}
-
-std::string_view method_to_string(Method method) {
-    LOG_TRACE("http::method_to_string()");
-    using namespace std::string_view_literals;
-    switch (method) {
-        case Method::Get:
-            return "GET"sv;
-        case Method::Post:
-            return "POST"sv;
-        case Method::Put:
-            return "PUT"sv;
-        case Method::Patch:
-            return "PATCH"sv;
-        case Method::Delete:
-            return "DELETE"sv;
-        case Method::Connect:
-            return "CONNECT"sv;
-        case Method::Head:
-            return "HEAD"sv;
-        case Method::Options:
-            return "OPTIONS"sv;
-        case Method::Trace:
-            return "TRACE"sv;
-        default:
-            return "GET";
-    }
-}
-
-HttpVersion parse_http_version(std::string_view raw_version) {
-    LOG_TRACE("http::parse_http_version()");
-    std::string_view version_literal(
-        raw_version.begin() + 4, raw_version.end());
-
-    using namespace std::string_view_literals;
-    if (version_literal == "1.1"sv) {
-        return HttpVersion::Http1_1;
-    } else {
-        return HttpVersion::Unknown;
-    }
-}
-
-std::string_view http_version_to_string(HttpVersion http_version) {
-    LOG_TRACE("http::http_version_to_string()");
-    using namespace std::string_view_literals;
-    switch (http_version) {
-        case HttpVersion::Http1_1:
-            return "HTTP/1.1";
-        case HttpVersion::Unknown:
-            return "HTTP/1.1";
-    }
-}
 
 struct Request {
     Method method;
@@ -126,16 +36,14 @@ struct Request {
         // GET /route HTTP/1.1
         std::string_view request_line = header.front();
         auto split_request_line = split(request_line, ' ');
-        auto split_request_line_it = split_request_line.begin();
-        request.method = parse_method(*(split_request_line_it++));
-        if (split_request_line_it == split_request_line.end()) {
+        auto sv = std::ranges::to<std::vector>(split_request_line);
+
+        if (sv.size() != 3) {
             return std::nullopt;
         }
-        request.route = *(split_request_line_it++);
-        if (split_request_line_it == split_request_line.end()) {
-            return std::nullopt;
-        }
-        request.http_version = parse_http_version(*split_request_line_it);
+        request.method = parse_method(sv[0]);
+        request.route = sv[1];
+        request.http_version = parse_http_version(sv[2]);
 
         // Fields
         // field-name : field-value
